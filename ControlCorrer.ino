@@ -1,14 +1,14 @@
 #include <FreeRTOS_AVR.h>
+//#define DEBUG // Macro para habilitar los mensajes de debug, no usar en produccion
 #include "definiciones.h"
 
-// Esta es la version en el repositorio dropbox
+// Esta es la version en el repositorio GitHub
 
 boolean estadoEncendido = false;
 short int velocidad     = 0;
-bool estadoConexion     = false;
+bool estadoConexion     = false;  // Estado inicial, cambia al recibir una C desde la pc
 
-const short int VelInicial = 0;
-
+const short int VelInicial = 0;  //Velocidad inicial de la cinta
 
 // Cola
 QueueHandle_t cola_entrada;
@@ -29,20 +29,20 @@ void printDisplay(int);
 
 
 void setup() {
-
   setInput();
-  setOutput();
-  printDisplay(-1);
+  setOutput();        //Configuracion de los pines
+  printDisplay(-1);  //Si se envia un numero menor que 0, los digitos se apagan
   Serial.begin(57600);
+
   DEBUG_PRINTLN ("arrancamos");
+
   //Colas
   cola_entrada = xQueueCreate(tamCola, tamMsg);   //Manejador de la cola delas entradas
 
   //Semaforos
-  vSemaphoreCreateBinary(semaforo_boton );
+  vSemaphoreCreateBinary(semaforo_boton );        //Semanfor binario
 
   //Tareas
-
   xTaskCreate(TareaBoton,  "Tarea boton", tamPila, NULL, prioridadBoton,  NULL);
   xTaskCreate(TareaSalida, "Tarea salida", tamPila, NULL, prioridadSalida, NULL);
   xTaskCreate(TareaSerial, "Tarea serial", tamPila, NULL, prioridadSerial, NULL);
@@ -61,16 +61,13 @@ void loop() {
 
 }
 
-
 //              TAREAS
 
 void TareaBoton (void *pvParameters) {
-
-
   while (1) {
     unsigned int botonPress[2];   //array para guardar en la cola
     botonPress[0] = getTecla();
-    botonPress[1] = (int)98;
+    botonPress[1] = (int)98;      //El 98 es la b en ASCII, asi la tarea guarda quien grabo el dato en la cola
 
     if (botonPress[0] > 47) {
       xQueueSend(cola_entrada, &botonPress, 100);
@@ -80,15 +77,14 @@ void TareaBoton (void *pvParameters) {
   }
 }
 
+
 void TareaSerial (void *pvParameters) {
-
-
   while (1) {
     unsigned int entradaSerial[2];      //array para guardar en la cola
     entradaSerial [0] = funcionSerial();
-    entradaSerial [1] = (int)115;
+    entradaSerial [1] = (int)115;       //El 115 es la s en ASCII, asi la tarea guarda quien grabo el dato en la cola
 
-    if (entradaSerial[0] > 47) {   // 47 es el codigo anterior al 0 en ascii
+    if (entradaSerial[0] > 47) {        // 47 es el codigo anterior al 0 en ascii
       xQueueSend(cola_entrada, &entradaSerial, 100);
     }
     vTaskDelay(50);
@@ -96,16 +92,12 @@ void TareaSerial (void *pvParameters) {
 }
 
 void TareaSalida (void *pvParameters) {
-
   unsigned int value[2] ;
-
   while (1) {
-
-    //Serial.println( pcTaskName );
     if (xQueueReceive(cola_entrada, &value, portMAX_DELAY) == pdTRUE) {
-      DEBUG_PRINT ((char)value[0]);
+      
+      DEBUG_PRINT ((char)value[0]);        //Mensaje de debug
       DEBUG_PRINTLN ((char)value[1]);
-
 
       switch ((char)value[0]) {
         case 'c': estadoConexion = true;
